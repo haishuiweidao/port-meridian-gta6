@@ -65,6 +65,7 @@ createServer((request, response) => {
     'content-type': MIME[extname(file).toLowerCase()] ?? 'application/octet-stream',
     'content-length': size,
     'cache-control': 'no-store',
+    'x-content-type-options': 'nosniff',
   });
   // A read failure mid-stream (e.g. the file vanishing) must not crash the server.
   createReadStream(file).on('error', () => {

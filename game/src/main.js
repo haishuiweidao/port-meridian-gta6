@@ -35,6 +35,12 @@ function saveGame() {
   localStorage.setItem(SAVE_KEY, JSON.stringify({
     x: p.x, y: p.y, cash: p.cash, health: p.health, ammo: p.ammo,
     missionIndex: state.missionIndex, missionStep: state.missionStep, score: state.score,
+    clockHours: state.clockHours,
+    packagesFound: state.packages.map((pkg) => pkg.found),
+    taxi: state.taxi ? {
+      trips: state.taxi.trips, earned: state.taxi.earned,
+      ratings: state.taxi.ratings, cancelled: state.taxi.cancelled,
+    } : null,
   }));
   state.message = 'Game saved.'; state.messageT = 2;
 }
@@ -45,6 +51,23 @@ function loadSave() {
     const d = JSON.parse(raw);
     Object.assign(state.player, { x: d.x, y: d.y, cash: d.cash, health: d.health, ammo: d.ammo });
     state.missionIndex = d.missionIndex || 0; state.missionStep = d.missionStep || 0; state.score = d.score || 0;
+    if (typeof d.clockHours === 'number') state.clockHours = d.clockHours;
+    // Hidden packages: restore which stashes were already collected.
+    if (Array.isArray(d.packagesFound)) {
+      state.packagesFound = 0;
+      state.packages.forEach((pkg, i) => {
+        pkg.found = !!d.packagesFound[i];
+        if (pkg.found) state.packagesFound += 1;
+      });
+    }
+    // Taxi career stats ride along; the live fare itself is not saved.
+    if (d.taxi && state.taxi) {
+      Object.assign(state.taxi, {
+        trips: d.taxi.trips || 0, earned: d.taxi.earned || 0,
+        ratings: Array.isArray(d.taxi.ratings) ? d.taxi.ratings : [],
+        cancelled: d.taxi.cancelled || 0,
+      });
+    }
     state.message = 'Save loaded — welcome back to Port Meridian.'; state.messageT = 3;
   } catch { /* corrupt save: start fresh */ }
 }
@@ -76,7 +99,7 @@ function frame(now) {
       mouse.clicked = false; // the start click must not also fire a shot
       clearJustPressed(); // keys tapped on the title screen must not fire in play
       screen = SCREEN_PLAY;
-      state.dialog = 'Mara Voss — courier, ex-wheelwoman. Sal Moreno has three jobs for you. First: pick up the parcel at the yellow marker.';
+      state.dialog = 'Mara Voss — courier, ex-wheelwoman. Sal Moreno has four jobs for you, ending with the Harbor Heist. First: pick up the parcel at the yellow marker.';
       state.dialogT = 7;
     }
     if (screen === SCREEN_PLAY) {

@@ -29,9 +29,40 @@ export const MISSIONS = [
     ],
     reward: 800,
   },
+  {
+    id: 4, name: 'Harbor Heist', giver: 'Sal Moreno',
+    brief: 'Sal has one more score, and it pays double. Steal the black getaway sedan parked up north — the harbour police will swarm you at wanted level 3. Lose them completely (0 stars), then deliver the sedan to the crane at the harbour. No witnesses, no heat, no payout.',
+    steps: [
+      { text: 'Steal the black getaway sedan up north', target: { x: 200, y: 200 }, kind: 'stealSpecific', carName: 'Getaway Sedan', wanted: 3 },
+      { text: 'Lose the police — drop to 0 wanted stars', target: { x: 1400, y: 1700 }, kind: 'evade' },
+      { text: 'Deliver the sedan to the harbour crane', target: { x: 2300, y: 1700 }, kind: 'deliver' },
+    ],
+    reward: 1200,
+  },
 ];
 export function missionIntro(m) {
   return `${m.name} — ${m.giver}: ${m.brief}`;
+}
+
+// Look a mission up by its id (1-based story order), or null when unknown.
+export function missionById(id) {
+  return MISSIONS.find((m) => m.id === id) || null;
+}
+
+// True for the final story mission — the one that frees Mara.
+export function isFinalMission(m) {
+  return !!m && m.id === MISSIONS[MISSIONS.length - 1].id;
+}
+
+// Total cash the whole story pays out, for the end-of-story summary line.
+export function totalStoryReward() {
+  return MISSIONS.reduce((sum, m) => sum + m.reward, 0);
+}
+
+// Short progress label, e.g. "Mission 2 of 4".
+export function missionProgressLabel(index) {
+  const n = Math.min(index + 1, MISSIONS.length);
+  return `Mission ${n} of ${MISSIONS.length}`;
 }
 
 // Fail fast at load time if a mission target sits outside the city: a marker

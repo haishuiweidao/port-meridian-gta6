@@ -4,6 +4,7 @@
 import { WORLD, ROADS_X, ROADS_Y, ROAD_W, COLORS, PLAYER, CAR, WANTED_DECAY, WANTED_MAX } from './config.js';
 import { mulberry32, pick, range, clamp, dist, angleTo, normAngle } from './random.js';
 import { MISSIONS, missionIntro } from './missions.js';
+import { createTaxi, updateTaxi } from './sidejobs.js';
 import * as audio from './audio.js';
 
 const CAR_COLORS = ['#c0392b', '#2980b9', '#f1c40f', '#7f8c8d', '#8e44ad', '#16a085', '#e67e22', '#ecf0f1'];
@@ -49,6 +50,9 @@ export function createWorld(seed = 1) {
   // The white coupe for mission 3, by the marina.
   const coupe = mkCar(2300, 1400, 0, '#f5f5f0', { parked: true, name: 'Marina Coupe', special: true });
   parked.push(coupe); cars.push(coupe);
+  // The black getaway sedan for mission 4, parked up north by the docks.
+  const getaway = mkCar(200, 200, 0, '#111318', { parked: true, name: 'Getaway Sedan', special: true });
+  parked.push(getaway); cars.push(getaway);
   // Moving traffic.
   for (let i = 0; i < 16; i++) {
     const horizontal = rng() > 0.5;
@@ -64,7 +68,7 @@ export function createWorld(seed = 1) {
     peds.push({ x: range(rng, 100, 2500), y: range(rng, 100, 1750), angle: rng() * Math.PI * 2, speed: range(rng, 28, 55), color: pick(rng, PED_COLORS), name: pick(rng, NAMES), flee: 0, tx: 0, ty: 0 });
   }
   const state = {
-    seed, time: 0, rng,
+    seed, time: 0, rng, clockHours: 10, // the day starts at 10:00; a full day lasts 4 minutes
     player: { x: 545, y: 1145, angle: -Math.PI / 2, speed: 0, health: PLAYER.health, cash: 50, ammo: 24, weapon: 'pistol', inCar: null, punchCd: 0, shootCd: 0, dead: false },
     cars, parked, peds, buildings, trees,
     police: [], bullets: [], particles: [], pickups: [],
@@ -72,7 +76,17 @@ export function createWorld(seed = 1) {
     missionIndex: 0, missionStep: 0, missionActive: false, missionDone: false, storyComplete: false,
     dialog: null, dialogT: 0, message: '', messageT: 0,
     score: 0, kills: 0, carsStolen: 0,
+    taxi: createTaxi(rng),
+    packages: [], packagesFound: 0,
   };
+  // Hidden packages: 10 gold stashes tucked around the city, $150 each.
+  // Seeded positions so a fresh day always hides them in the same spots.
+  for (let i = 0; i < 10; i++) {
+    state.packages.push({
+      x: Math.round(range(rng, 150, 2450)), y: Math.round(range(rng, 150, 1700)),
+      found: false,
+    });
+  }
   // Pickups: cash + health + ammo scattered in the city.
   for (let i = 0; i < 10; i++) state.pickups.push({ x: range(rng, 150, 2450), y: range(rng, 150, 1700), kind: i % 3 === 0 ? 'health' : i % 3 === 1 ? 'ammo' : 'cash', amount: i % 3 === 2 ? 25 : 12 });
   return state;
@@ -120,6 +134,8 @@ function burst(s, x, y, color, n = 10) {
 
 export function stepWorld(s, input, dt) {
   s.time += dt;
+  // Clock: a full 24-hour day lasts 240 seconds of play.
+  s.clockHours = (s.clockHours + dt * (24 / 240)) % 24;
   const p = s.player;
   if (p.dead) return;
   if (s.dialogT > 0) s.dialogT -= dt;
@@ -280,12 +296,27 @@ export function stepWorld(s, input, dt) {
       s.messageT = 2; audio.sfxPickup(); s.pickups.splice(i, 1);
     }
   }
+  // --- Hidden packages ---
+  for (const pkg of s.packages) {
+    if (!pkg.found && dist(p.x, p.y, pkg.x, pkg.y) < 34) {
+      pkg.found = true;
+      s.packagesFound += 1;
+      p.cash += 150;
+      s.score += 150;
+      s.message = `Hidden package found! +$150 (${s.packagesFound}/10).`;
+      s.messageT = 3;
+      audio.sfxPickup();
+      burst(s, pkg.x, pkg.y, '#ffd700', 12);
+    }
+  }
   // --- Particles ---
   for (let i = s.particles.length - 1; i >= 0; i--) {
     const pt = s.particles[i];
     pt.x += pt.vx * dt; pt.y += pt.vy * dt; pt.life -= dt;
     if (pt.life <= 0) s.particles.splice(i, 1);
   }
+  // --- Taxi side job ---
+  updateTaxi(s, dt);
   // --- Missions ---
   updateMission(s, dt);
   if (p.health <= 0 && !p.dead) {
@@ -313,6 +344,25 @@ function updateMission(s, dt) {
       s.missionStep += 1;
       if (step.wanted) addHeat(s, step.wanted, 'The marina alarm is going off!');
       s.message = 'Coupe stolen! Now drive it to the harbour gate.'; s.messageT = 3; audio.sfxMission();
+    }
+    return;
+  }
+  if (step.kind === 'stealSpecific') {
+    // Mission 4: only the named getaway sedan counts — any other car won't do.
+    const target = s.cars.find((c) => c.name === step.carName);
+    if (target && p.inCar === target) {
+      s.missionStep += 1;
+      if (step.wanted) addHeat(s, step.wanted, 'The docks alarm is going off — the police are coming!');
+      s.message = `${step.carName} stolen! Now lose the police completely.`; s.messageT = 3; audio.sfxMission();
+    }
+    return;
+  }
+  if (step.kind === 'evade') {
+    // Mission 4: the step completes the moment the heat is fully gone,
+    // wherever Mara is — hiding out, not a marker, is the point.
+    if (s.stars === 0) {
+      s.missionStep += 1;
+      s.message = 'Clean — no stars. Now deliver the sedan to the harbour crane.'; s.messageT = 3; audio.sfxMission();
     }
     return;
   }
@@ -344,4 +394,11 @@ export function missionName(s) {
   if (s.storyComplete) return 'Free roam — story complete';
   const m = MISSIONS[s.missionIndex];
   return `${m.name}: ${m.steps[s.missionStep].text}`;
+}
+export function packagesTotal(s) {
+  return s.packages ? s.packages.length : 0;
+}
+export function packagesLeft(s) {
+  if (!s.packages) return 0;
+  return s.packages.filter((pkg) => !pkg.found).length;
 }

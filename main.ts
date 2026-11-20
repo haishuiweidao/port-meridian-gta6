@@ -15,6 +15,10 @@ import { buildDossier } from './vendor/makefun-game.ts';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
+// Fail fast when the entry is incomplete instead of handing in a broken game.
+if (!existsSync(join(here, 'game', 'index.html'))) throw new Error('game/index.html is missing — cannot build the dossier');
+if (!existsSync(join(here, 'game', 'src', 'main.js'))) throw new Error('game/src/main.js is missing — cannot build the dossier');
+
 mkdirSync(out, { recursive: true });
 cpSync(join(here, 'game'), join(out, 'game'), { recursive: true });
 mkdirSync(join(out, 'screenshots'), { recursive: true });

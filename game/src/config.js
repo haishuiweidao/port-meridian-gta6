@@ -17,3 +17,8 @@ export const CAR = { accel: 420, brake: 700, maxSpeed: 460, maxReverse: 160, tur
 export const WANTED_DECAY = 0.045; // heat per second with no crime
 export const WANTED_MAX = 5; // highest wanted level / most police at once
 export const SAVE_KEY = 'port-meridian-save-v1';
+// Day/night: a full day lasts DAY_LENGTH seconds; night falls 20:00–06:00.
+export const DAY_LENGTH = 240;
+export const NIGHT_START = 20; // 20:00
+export const NIGHT_END = 6; // 06:00
+export const HEADLIGHT_RANGE = 280; // how far the headlight cone reaches at night

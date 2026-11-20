@@ -24,3 +24,12 @@ export function normAngle(a) {
   while (a < -Math.PI) a += Math.PI * 2;
   return a;
 }
+// Fisher–Yates shuffle with the seeded rng; returns a new array.
+export function shuffle(rng, arr) {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}

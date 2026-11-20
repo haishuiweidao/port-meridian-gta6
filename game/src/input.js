@@ -18,7 +18,7 @@ export function bindInput(canvas) {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   });
   addEventListener('keyup', (e) => { keys[e.code] = false; });
-  addEventListener('blur', () => { for (const k in keys) keys[k] = false; justPressed.clear(); });
+  addEventListener('blur', () => { for (const k in keys) keys[k] = false; justPressed.clear(); mouse.down = false; mouse.clicked = false; });
   canvas.addEventListener('mousemove', (e) => {
     const r = canvas.getBoundingClientRect();
     mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
