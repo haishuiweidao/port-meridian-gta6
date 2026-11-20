@@ -8,8 +8,14 @@ export function mulberry32(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-export function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
-export function range(rng, lo, hi) { return lo + rng() * (hi - lo); }
+export function pick(rng, arr) {
+  if (!arr.length) throw new Error('pick: empty array');
+  return arr[Math.floor(rng() * arr.length)];
+}
+export function range(rng, lo, hi) {
+  if (hi < lo) [lo, hi] = [hi, lo]; // tolerate a reversed range instead of returning a negative span
+  return lo + rng() * (hi - lo);
+}
 export function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 export function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
 export function angleTo(ax, ay, bx, by) { return Math.atan2(by - ay, bx - ax); }

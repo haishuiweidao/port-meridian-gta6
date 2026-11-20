@@ -133,7 +133,8 @@ function drawHUD(ctx, s, w, h, screen) {
   ctx.fillText(`$${p.cash}`, 24, 22);
   ctx.font = '14px sans-serif';
   ctx.fillText(`Health ${Math.max(0, Math.round(p.health))}  ·  Ammo ${p.ammo}  ·  ${p.weapon === 'pistol' ? 'Pistol' : 'Fists'}`, 24, 48);
-  ctx.fillText(missionName(s), 24, 70);
+  // Mission line must fit the 250px HUD panel: truncate long names with an ellipsis.
+  ctx.fillText(fitText(ctx, missionName(s), 226), 24, 70);
   // Wanted stars.
   ctx.font = 'bold 22px sans-serif';
   for (let i = 0; i < 5; i++) {
@@ -172,6 +173,12 @@ function drawHUD(ctx, s, w, h, screen) {
     ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif';
     ctx.fillText(`Driving: ${p.inCar.name || 'car'} — ${Math.round(Math.abs(p.inCar.speed) * 0.36)} km/h`, 24, 124);
   }
+}
+function fitText(ctx, text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(t + '…').width > maxW) t = t.slice(0, -1);
+  return t + '…';
 }
 function wrapText(ctx, text, x, y, maxW, lh) {
   const words = text.split(' '); let line = '', yy = y;

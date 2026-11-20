@@ -1,5 +1,6 @@
 // Story missions for Port Meridian. All original: Mara Voss, a courier who
 // gets pulled into one last job for the harbour fixer, Sal Moreno.
+import { WORLD } from './config.js';
 export const MISSIONS = [
   {
     id: 1, name: 'First Pickup', giver: 'Sal Moreno',
@@ -31,4 +32,14 @@ export const MISSIONS = [
 ];
 export function missionIntro(m) {
   return `${m.name} — ${m.giver}: ${m.brief}`;
+}
+
+// Fail fast at load time if a mission target sits outside the city: a marker
+// the player can never reach would soft-lock that mission.
+for (const m of MISSIONS) {
+  for (const step of m.steps) {
+    if (step.target.x < 0 || step.target.x > WORLD.w || step.target.y < 0 || step.target.y > WORLD.h) {
+      throw new Error(`Mission "${m.name}": step "${step.text}" target (${step.target.x}, ${step.target.y}) is outside the ${WORLD.w}x${WORLD.h} city.`);
+    }
+  }
 }

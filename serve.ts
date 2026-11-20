@@ -66,7 +66,11 @@ createServer((request, response) => {
     'content-length': size,
     'cache-control': 'no-store',
   });
-  createReadStream(file).pipe(response);
+  // A read failure mid-stream (e.g. the file vanishing) must not crash the server.
+  createReadStream(file).on('error', () => {
+    if (!response.headersSent) response.writeHead(500).end('read error');
+    else response.destroy();
+  }).pipe(response);
 }).listen(port, '127.0.0.1', () => {
   console.log(`game/ is on http://localhost:${port}`);
 });

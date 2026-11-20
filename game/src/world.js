@@ -1,9 +1,9 @@
 // World state + simulation for Port Meridian.
 // Top-down city: road grid, buildings, park, harbour water, traffic, peds,
 // police, combat, wanted level, pickups, particles and missions.
-import { WORLD, ROADS_X, ROADS_Y, ROAD_W, COLORS, PLAYER, CAR, WANTED_DECAY } from './config.js';
+import { WORLD, ROADS_X, ROADS_Y, ROAD_W, COLORS, PLAYER, CAR, WANTED_DECAY, WANTED_MAX } from './config.js';
 import { mulberry32, pick, range, clamp, dist, angleTo, normAngle } from './random.js';
-import { MISSIONS } from './missions.js';
+import { MISSIONS, missionIntro } from './missions.js';
 import * as audio from './audio.js';
 
 const CAR_COLORS = ['#c0392b', '#2980b9', '#f1c40f', '#7f8c8d', '#8e44ad', '#16a085', '#e67e22', '#ecf0f1'];
@@ -101,7 +101,7 @@ export function addHeat(s, amount, why) {
   if (amount > 0) s.message = why || 'The police noticed that!'; s.messageT = 2.5;
 }
 function spawnPolice(s) {
-  const want = Math.min(1 + s.stars, 5);
+  const want = Math.min(1 + s.stars, WANTED_MAX);
   while (s.police.length < want) {
     const p = s.player;
     const a = s.rng() * Math.PI * 2;
@@ -180,7 +180,11 @@ export function stepWorld(s, input, dt) {
     const steer = input.move.x;
     if (fwd !== 0) car.speed = clamp(car.speed + fwd * CAR.accel * dt, -CAR.maxReverse, CAR.maxSpeed);
     else car.speed *= Math.max(0, 1 - 1.6 * dt);
-    if (input.brake) car.speed *= Math.max(0, 1 - 4 * dt);
+    if (input.brake) {
+      // Linear braking from CAR.brake, stopping at zero instead of overshooting into reverse.
+      const dec = CAR.brake * dt;
+      car.speed = Math.abs(car.speed) <= dec ? 0 : car.speed - Math.sign(car.speed) * dec;
+    }
     car.angle += steer * CAR.turn * dt * (car.speed / CAR.maxSpeed) * (car.speed >= 0 ? 1 : -1);
     const nx = car.x + Math.cos(car.angle) * car.speed * dt;
     const ny = car.y + Math.sin(car.angle) * car.speed * dt;
@@ -225,7 +229,6 @@ export function stepWorld(s, input, dt) {
       if (ped.y < 40 || ped.y > WORLD.h - 40) ped.angle = -ped.angle;
     }
     resolveBuilding(s, ped, 10);
-    if (!p.inCar && dist(ped.x, ped.y, p.x, p.y) < 26 && Math.abs((p.inCar ? 0 : 0)) === 0) { /* touch: nothing */ }
     if (p.inCar && dist(ped.x, ped.y, p.x, p.y) < 30 && ped.flee <= 0) { ped.flee = 3; ped.angle = angleTo(p.x, p.y, ped.x, ped.y); addHeat(s, 0.7, 'You hit a pedestrian!'); burst(s, ped.x, ped.y, '#ff6b6b', 8); }
   }
   // --- Police ---
@@ -250,7 +253,9 @@ export function stepWorld(s, input, dt) {
       const sp = 150;
       cop.x += Math.cos(a) * sp * dt; cop.y += Math.sin(a) * sp * dt;
       resolveBuilding(s, cop, 12);
-      if (d < 26) p.health -= 26 * dt;
+      // Foot cops can only hurt a player on foot — a driver is behind the
+      // car body (police cars handle ramming the player's car instead).
+      if (d < 26 && !p.inCar) p.health -= 26 * dt;
     }
     if (d > 900) { s.police.splice(i, 1); }
   }
@@ -340,4 +345,3 @@ export function missionName(s) {
   const m = MISSIONS[s.missionIndex];
   return `${m.name}: ${m.steps[s.missionStep].text}`;
 }
-import { missionIntro } from './missions.js';

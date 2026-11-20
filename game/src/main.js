@@ -1,6 +1,6 @@
 // Port Meridian — main loop, screens, save/load, screenshot mode.
 import { createWorld, stepWorld } from './world.js';
-import { bindInput, keys, mouse, moveAxis, consume } from './input.js';
+import { bindInput, keys, mouse, moveAxis, consume, clearJustPressed } from './input.js';
 import { drawWorld, SCREEN_TITLE, SCREEN_PLAY, SCREEN_OVER, SCREEN_PAUSE } from './render.js';
 import { initAudio, toggleMute, startMusic } from './audio.js';
 import { stageShot } from './shots.js';
@@ -74,14 +74,13 @@ function frame(now) {
     if (screen === SCREEN_TITLE && (mouse.clicked || keys['Enter'])) {
       initAudio(); startMusic();
       mouse.clicked = false; // the start click must not also fire a shot
+      clearJustPressed(); // keys tapped on the title screen must not fire in play
       screen = SCREEN_PLAY;
       state.dialog = 'Mara Voss — courier, ex-wheelwoman. Sal Moreno has three jobs for you. First: pick up the parcel at the yellow marker.';
       state.dialogT = 7;
     }
     if (screen === SCREEN_PLAY) {
       const input = readInput();
-      // Mouse click = attack; also allow J as punch/shoot for keyboard-only play.
-      input.attack = mouse.clicked || !!keys['KeyJ'];
       stepWorld(state, input, dt);
       if (state.player.dead) screen = SCREEN_OVER;
     }

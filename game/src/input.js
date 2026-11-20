@@ -7,6 +7,9 @@ export function consume(code) {
   if (justPressed.has(code)) { justPressed.delete(code); return true; }
   return false;
 }
+// Drop any queued one-shot presses (e.g. keys tapped on the title screen
+// must not fire the moment play starts).
+export function clearJustPressed() { justPressed.clear(); }
 export const mouse = { x: 0, y: 0, down: false, clicked: false };
 export function bindInput(canvas) {
   addEventListener('keydown', (e) => {
@@ -15,7 +18,7 @@ export function bindInput(canvas) {
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   });
   addEventListener('keyup', (e) => { keys[e.code] = false; });
-  addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+  addEventListener('blur', () => { for (const k in keys) keys[k] = false; justPressed.clear(); });
   canvas.addEventListener('mousemove', (e) => {
     const r = canvas.getBoundingClientRect();
     mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;

@@ -2,7 +2,7 @@
 // Everything here is original; no sampled music or effects.
 let ctx = null, master = null, sirenOsc = null, sirenGain = null, engineOsc = null, engineGain = null;
 let muted = false;
-let musicTimer = null;
+let musicTimer = null, sirenTimer = null, sirenOn = false, sirenHigh = false;
 const MELODY = [220, 277, 330, 392, 330, 277, 220, 196, 220, 262, 330, 392, 440, 392, 330, 277];
 export function initAudio() {
   if (ctx) return;
@@ -34,8 +34,19 @@ export function sfxCrash() { tone(70, 0.25, 'sawtooth', 0.35); }
 export function sfxMission() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, 'sine', 0.25, i * 0.11)); }
 export function sfxSiren(on) {
   if (!ctx) return;
+  // Two-tone wail, driven by a timer instead of resetting the oscillator
+  // frequency every frame while the siren is on.
+  if (on && !sirenOn) {
+    sirenOn = true; sirenHigh = false;
+    sirenTimer = setInterval(() => {
+      sirenHigh = !sirenHigh;
+      sirenOsc.frequency.setValueAtTime(sirenHigh ? 880 : 660, ctx.currentTime);
+    }, 450);
+  } else if (!on && sirenOn) {
+    sirenOn = false;
+    clearInterval(sirenTimer); sirenTimer = null;
+  }
   sirenGain.gain.value = on && !muted ? 0.05 : 0;
-  if (on) sirenOsc.frequency.setValueAtTime(700, ctx.currentTime);
 }
 export function sfxEngine(speed01) {
   if (!ctx) return;

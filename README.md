@@ -1,6 +1,8 @@
 # Port Meridian
 
 [![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![make.fun · rank](https://make.fun/badge/gta6-01/haishuiweidao/port-meridian-gta6/rank.svg)](https://make.fun/bounty/gta6-01)
+[![make.fun · reward](https://make.fun/badge/gta6-01/haishuiweidao/port-meridian-gta6/reward.svg)](https://make.fun/bounty/gta6-01)
 
 An original open-world crime game for make.fun's "Make GTA 6" bounty ($1,666 in USDC).
 Top-down, static files, no network requests — open `game/index.html` in desktop
@@ -41,7 +43,7 @@ Or open `game/index.html` from any static file server.
 | Shift | Run |
 | E | Enter, steal or leave a car |
 | Mouse click | Punch / shoot (aim with the mouse) |
-| 1 / 2 | Fists / pistol |
+| 1 / 2 | Toggle weapon (fists / pistol) — either key switches |
 | Space | Brake (in a car) |
 | P | Pause |
 | S | Save |
@@ -50,7 +52,8 @@ Or open `game/index.html` from any static file server.
 
 ## Screenshots
 
-`screenshots/1-start.jpg` is the cover. All four are real renders of the game.
+`screenshots/1-start.jpg` is the cover. All four are real renders of the game,
+staged deterministically with `?shot=start|play|chase|mission&seed=1`.
 
 ---
 

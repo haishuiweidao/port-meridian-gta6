@@ -9,6 +9,8 @@ function runSteps(s, seconds, input) {
 const idle = { keys: {}, move: { x: 0, y: 0 }, enter: false, attack: false, brake: false, weapon: false, aimX: 0, aimY: 0 };
 
 export function stageShot(name, seed = 1) {
+  const known = ['start', 'play', 'chase', 'mission'];
+  if (!known.includes(name)) console.warn(`stageShot: unknown shot "${name}", staging the title screen instead.`);
   const s = createWorld(seed);
   if (name === 'play') {
     // Drive downtown: get in a nearby car and drive east along a road.

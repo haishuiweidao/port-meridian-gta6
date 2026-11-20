@@ -7,7 +7,7 @@
 // http://localhost:8080. Outside the grader's container, MAKEFUN_OUTPUT_DIR
 // stands in for /output: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-game.ts';
@@ -24,8 +24,9 @@ if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), joi
 // scorer would refuse (more than 4 screenshots or one over 256 KiB; more than 993 files in game/ or 48 MiB of game
 // files, in all, or a path under game/ over 1000 bytes: game/ counts beside /output's own 1000-entry cap, its
 // screenshots/ and dossier.json).
+const dossierPath = join(out, 'dossier.json');
 writeFileSync(
-  join(out, 'dossier.json'),
+  dossierPath,
   buildDossier(out, {
     text_max_bytes: 163840,
     screenshots: { max: 4, max_bytes: 262144 },
@@ -34,3 +35,7 @@ writeFileSync(
     game_path_max_bytes: 1000,
   }),
 );
+// Report the result and fail loudly if the dossier ever blows past the 1.5 MiB entry cap.
+const dossierBytes = statSync(dossierPath).size;
+console.log(`dossier.json: ${dossierBytes} bytes -> ${dossierPath}`);
+if (dossierBytes > 1572864) throw new Error(`dossier.json is ${dossierBytes} bytes, over the 1.5 MiB cap`);
