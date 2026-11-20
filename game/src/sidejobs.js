@@ -134,6 +134,6 @@ export function taxiStatus(s) {
     const a = taxi.active;
     return `Taxi: ${a.name} → $${a.fare} · ${Math.max(0, Math.ceil(a.timeLeft))}s left`;
   }
-  if (taxi.waiting) return `Taxi: ${taxi.waiting.name} waiting for a cab`;
+  if (taxi.waiting) return `Taxi: ${taxi.waiting.name} waiting for a cab · ${Math.max(0, Math.ceil(taxi.waiting.patience))}s`;
   return `Taxi: ${taxi.trips} trips · $${taxi.earned} earned · ${taxiRating(taxi).toFixed(1)}★`;
 }

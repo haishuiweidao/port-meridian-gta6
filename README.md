@@ -11,7 +11,7 @@ Chrome and play.
 ## The game
 
 You are **Mara Voss**, a courier in the coastal city of **Port Meridian**.
-Sal Moreno, the harbour fixer, has four jobs for you — finish them and you
+Sal Moreno, the harbour fixer, has five jobs for you — finish them and you
 are free. Walk the streets, steal cars, outrun the harbour police, and watch
 your wanted level.
 
@@ -19,11 +19,13 @@ your wanted level.
 - Traffic and pedestrians who flee when trouble starts
 - Stealable cars (press E near one), police cars and foot cops, wanted level 0–5 stars
 - Combat: fists or pistol, mouse aim
-- Four story missions with dialogue and cash rewards ($200 / $400 / $800 / $1,200), ending with the Harbor Heist
+- Five story missions with dialogue and cash rewards ($200 / $400 / $800 / $1,200 / $1,500), ending with the timed Midnight Run — three drops in 120 seconds, retry if the clock beats you
 - Taxi side job: pick up waiting fares in your car, beat the clock, earn fares, tips and a driver rating
 - 10 hidden packages worth $150 each, saved with your progress
 - Day/night cycle with a HUD clock and headlights after dark
-- HUD with cash, health, ammo, wanted stars and a live minimap
+- Weather that rotates between clear, rain and fog — rain makes the roads slick, fog dims the view
+- Fuel: the tank drains while driving, an empty tank crawls, and two filling stations sell a full tank for $30 (pull up and press E)
+- HUD with cash, health, ammo, wanted stars, weather, fuel gauge, mission clock and a live minimap
 - Start screen, pause, save/load (in your browser), synthesised sound and music
 
 Everything — city, characters, vehicles, names, story, art, sound and music —
@@ -44,7 +46,7 @@ Or open `game/index.html` from any static file server.
 | --- | --- |
 | WASD / arrows | Walk / drive |
 | Shift | Run |
-| E | Enter, steal or leave a car |
+| E | Enter, steal or leave a car · fill up at a filling station (in a car) |
 | Mouse click | Punch / shoot (aim with the mouse) |
 | 1 / 2 | Toggle weapon (fists / pistol) — either key switches |
 | Space | Brake (in a car) |
@@ -56,8 +58,9 @@ Or open `game/index.html` from any static file server.
 ## Screenshots
 
 `screenshots/1-start.jpg` is the cover. All four are real renders of the game,
-staged deterministically with `?shot=start|play|chase|taxi&seed=1` — the chase
-shot is a night scene with headlights, and the taxi shot shows a fare in progress.
+staged deterministically with `?shot=start|play|chase|rain&seed=1` — the chase
+shot is a night scene with headlights, and the rain shot shows a wet night
+drive past a filling station with the tank under half.
 
 ---
 

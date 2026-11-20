@@ -3,6 +3,9 @@
 import { WORLD, ROADS_X, ROADS_Y, ROAD_W, COLORS, NIGHT_START, NIGHT_END, HEADLIGHT_RANGE } from './config.js';
 import { missionTarget, missionName, packagesTotal } from './world.js';
 import { taxiTarget, taxiStatus } from './sidejobs.js';
+import { missionClockLabel } from './missions.js';
+import { weatherLabel, drawWeather } from './weather.js';
+import { fuelLabel } from './fuel.js';
 import { isMuted } from './audio.js';
 
 export const SCREEN_TITLE = 'title', SCREEN_PLAY = 'play', SCREEN_OVER = 'over', SCREEN_PAUSE = 'pause';
@@ -63,6 +66,14 @@ export function drawWorld(ctx, s, w, h, screen) {
     for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
       if ((i * 7 + j * 3 + b.windows) % 4 === 0) ctx.fillRect(b.x + 8 + i * 24, b.y + 8 + j * 24, 10, 12);
     }
+  }
+  // Filling stations: forecourt pads with red pumps and a FUEL sign.
+  for (const st of s.fuel.stations) {
+    ctx.fillStyle = '#3a3f4a'; ctx.fillRect(st.x - 52, st.y - 34, 104, 68);
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(st.x - 40, st.y - 12, 18, 24); ctx.fillRect(st.x + 22, st.y - 12, 18, 24);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('FUEL', st.x, st.y + 28);
   }
   // Pickups.
   for (const pk of s.pickups) {
@@ -160,6 +171,8 @@ export function drawWorld(ctx, s, w, h, screen) {
     ctx.fillStyle = `rgba(8, 12, 40, ${(dark * 0.45).toFixed(3)})`;
     ctx.fillRect(0, 0, w, h);
   }
+  // Rain streaks and fog wash over the world, under the HUD.
+  drawWeather(ctx, s.weather, w, h);
   drawHUD(ctx, s, w, h, screen);
   if (screen === SCREEN_TITLE) drawTitle(ctx, s, w, h);
   if (screen === SCREEN_PAUSE) drawOverlay(ctx, w, h, 'PAUSED', 'P to resume · S to save · M to mute · R to restart the day');
@@ -186,7 +199,7 @@ function drawCar(ctx, c, police = false) {
 
 function drawHUD(ctx, s, w, h, screen) {
   const p = s.player;
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(12, 12, 250, 148);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(12, 12, 250, 170);
   ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText(`$${p.cash}`, 24, 22);
   ctx.font = '14px sans-serif';
@@ -204,6 +217,10 @@ function drawHUD(ctx, s, w, h, screen) {
   ctx.fillText(`${clockLabel(s.clockHours ?? 10)}  ·  Packages ${s.packagesFound || 0}/${packagesTotal(s)}`, 24, 114);
   ctx.fillStyle = '#7dd3fc';
   ctx.fillText(fitText(ctx, taxiStatus(s), 226), 24, 136);
+  // Weather, fuel gauge, and the mission clock when a timed job is running.
+  ctx.fillStyle = s.fuel.level < 0.2 ? '#f87171' : '#fff';
+  const timer = s.missionTimeLeft > 0 ? `  ·  ${missionClockLabel(s.missionTimeLeft)}` : '';
+  ctx.fillText(fitText(ctx, `${weatherLabel(s.weather)}  ·  ${fuelLabel(s.fuel)}${timer}`, 226), 24, 158);
   // Message / dialog.
   if (s.messageT > 0) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(w / 2 - 260, h - 64, 520, 34);
@@ -227,6 +244,7 @@ function drawHUD(ctx, s, w, h, screen) {
   if (target) { ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(mx + target.x * sx, my + target.y * sy, 5, 0, Math.PI * 2); ctx.fill(); }
   const taxiDot = taxiTarget(s);
   if (taxiDot) { ctx.fillStyle = '#22d3ee'; ctx.beginPath(); ctx.arc(mx + taxiDot.x * sx, my + taxiDot.y * sy, 4, 0, Math.PI * 2); ctx.fill(); }
+  for (const st of s.fuel.stations) { ctx.fillStyle = '#2ecc71'; ctx.fillRect(mx + st.x * sx - 2, my + st.y * sy - 2, 4, 4); }
   for (const c of s.cars) { ctx.fillStyle = '#fff'; ctx.fillRect(mx + c.x * sx - 1, my + c.y * sy - 1, 3, 3); }
   for (const cop of s.police) { ctx.fillStyle = '#4a90e2'; ctx.beginPath(); ctx.arc(mx + cop.x * sx, my + cop.y * sy, 3, 0, Math.PI * 2); ctx.fill(); }
   ctx.fillStyle = '#ff4757'; ctx.beginPath(); ctx.arc(mx + p.x * sx, my + p.y * sy, 4, 0, Math.PI * 2); ctx.fill();
@@ -234,9 +252,9 @@ function drawHUD(ctx, s, w, h, screen) {
   ctx.fillText('PORT MERIDIAN', mx, my + mh + 12);
   ctx.fillText(`WASD move/drive · E car · Click ${p.weapon === 'pistol' ? 'shoot' : 'punch'} · 1/2 weapon · M ${isMuted() ? 'unmute' : 'mute'} · P pause`, 12, h - 22);
   if (screen === SCREEN_PLAY && p.inCar) {
-    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(12, 168, 250, 30);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(12, 190, 250, 30);
     ctx.fillStyle = '#fff'; ctx.font = '14px sans-serif';
-    ctx.fillText(`Driving: ${p.inCar.name || 'car'} — ${Math.round(Math.abs(p.inCar.speed) * 0.36)} km/h`, 24, 176);
+    ctx.fillText(`Driving: ${p.inCar.name || 'car'} — ${Math.round(Math.abs(p.inCar.speed) * 0.36)} km/h`, 24, 198);
   }
 }
 function fitText(ctx, text, maxW) {
@@ -260,8 +278,8 @@ function drawTitle(ctx, s, w, h) {
   ctx.fillStyle = '#ff6b81'; ctx.font = 'bold 26px sans-serif';
   ctx.fillText('An open-world crime story — by Mara Voss', w / 2, h / 2 - 72);
   ctx.fillStyle = '#fff'; ctx.font = '17px sans-serif';
-  ctx.fillText('Steal cars, outrun the harbour police, and finish Sal Moreno’s four jobs.', w / 2, h / 2 - 8);
-  ctx.fillText('Drive a cab between jobs, hunt the 10 hidden packages, and mind the clock — it gets dark.', w / 2, h / 2 + 20);
+  ctx.fillText('Steal cars, outrun the harbour police, and finish Sal Moreno’s five jobs.', w / 2, h / 2 - 8);
+  ctx.fillText('Drive a cab between jobs, hunt the 10 hidden packages, and mind the clock, the weather and your fuel gauge.', w / 2, h / 2 + 20);
   ctx.fillText('WASD move / drive · E enter & steal a car · Mouse aim, click to fight · 1/2 switch weapon', w / 2, h / 2 + 26);
   ctx.fillText('Shift run · Space brake · P pause · S save · M mute', w / 2, h / 2 + 54);
   ctx.fillStyle = '#ffd166'; ctx.font = 'bold 22px sans-serif';

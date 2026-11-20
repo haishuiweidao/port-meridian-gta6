@@ -39,6 +39,18 @@ export const MISSIONS = [
     ],
     reward: 1200,
   },
+  {
+    id: 5, name: 'Midnight Run', giver: 'Sal Moreno',
+    brief: 'One crate, three drops, and the clock is the enemy. Sal needs the goods across town before the deal goes cold — 120 seconds from the pickup. Late and the run is dead, but Sal will let you run it again.',
+    steps: [
+      { text: 'Pick up the crate at the north market', target: { x: 800, y: 500 }, kind: 'pickup' },
+      { text: 'Drop 1: the east depot', target: { x: 2000, y: 500 }, kind: 'deliver' },
+      { text: 'Drop 2: the south flats', target: { x: 500, y: 1700 }, kind: 'deliver' },
+      { text: 'Drop 3: the north docks — beat the clock', target: { x: 2300, y: 200 }, kind: 'deliver' },
+    ],
+    reward: 1500,
+    timeLimit: 120, // seconds from the briefing; miss it and the run restarts
+  },
 ];
 export function missionIntro(m) {
   return `${m.name} — ${m.giver}: ${m.brief}`;
@@ -59,10 +71,20 @@ export function totalStoryReward() {
   return MISSIONS.reduce((sum, m) => sum + m.reward, 0);
 }
 
-// Short progress label, e.g. "Mission 2 of 4".
+// Short progress label, e.g. "Mission 2 of 5".
 export function missionProgressLabel(index) {
   const n = Math.min(index + 1, MISSIONS.length);
   return `Mission ${n} of ${MISSIONS.length}`;
+}
+
+// Time limit in seconds for a mission, or 0 when the job has no clock.
+export function missionTimeLimit(m) {
+  return m && typeof m.timeLimit === 'number' ? m.timeLimit : 0;
+}
+
+// Short countdown label for the HUD, e.g. "⏱ 87s".
+export function missionClockLabel(seconds) {
+  return `⏱ ${Math.max(0, Math.ceil(seconds))}s`;
 }
 
 // Fail fast at load time if a mission target sits outside the city: a marker

@@ -2,6 +2,7 @@
 // like the starter's shots.js. ?shot=start|play|chase|mission (&seed=).
 import { STEP } from './config.js';
 import { createWorld, stepWorld, addHeat } from './world.js';
+import { updateWeather } from './weather.js';
 
 function runSteps(s, seconds, input) {
   for (let i = 0; i < seconds / STEP; i++) stepWorld(s, input, STEP);
@@ -9,9 +10,22 @@ function runSteps(s, seconds, input) {
 const idle = { keys: {}, move: { x: 0, y: 0 }, enter: false, attack: false, brake: false, weapon: false, aimX: 0, aimY: 0 };
 
 export function stageShot(name, seed = 1) {
-  const known = ['start', 'play', 'chase', 'mission', 'taxi'];
+  const known = ['start', 'play', 'chase', 'mission', 'taxi', 'rain'];
   if (!known.includes(name)) console.warn(`stageShot: unknown shot "${name}", staging the title screen instead.`);
   const s = createWorld(seed);
+  if (name === 'rain') {
+    // Rainy night run: wet roads, headlights on, a filling station right
+    // behind the car and the tank under half.
+    s.weather.kind = 'rain';
+    s.clockHours = 21;
+    s.player.x = 500; s.player.y = 500;
+    const car = s.cars.find((c) => c.parked) || s.cars[0];
+    s.player.inCar = car; car.parked = false; car.stolen = true; car.angle = 0; car.x = 500; car.y = 500;
+    s.fuel.level = 0.45;
+    updateWeather(s.weather, 1.5, 1280, 720);
+    runSteps(s, 1.5, { ...idle, move: { x: 0, y: -1 } });
+    return { state: s, screen: 'play' };
+  }
   if (name === 'taxi') {
     // Taxi side job: a fare is already riding, destination marker ahead.
     s.player.x = 800; s.player.y = 800;

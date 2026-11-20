@@ -33,6 +33,7 @@ export function sfxPickup() { tone(660, 0.1, 'sine', 0.25); tone(990, 0.14, 'sin
 export function sfxCrash() { tone(70, 0.25, 'sawtooth', 0.35); }
 export function sfxMission() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.18, 'sine', 0.25, i * 0.11)); }
 export function sfxTaxi() { tone(880, 0.1, 'sine', 0.25); tone(1174, 0.16, 'sine', 0.25, 0.09); }
+export function sfxRefuel() { tone(520, 0.12, 'sine', 0.25); tone(780, 0.2, 'sine', 0.25, 0.12); }
 export function sfxSiren(on) {
   if (!ctx) return;
   // Two-tone wail, driven by a timer instead of resetting the oscillator

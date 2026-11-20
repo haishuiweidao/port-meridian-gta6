@@ -4,6 +4,8 @@ import { bindInput, keys, mouse, moveAxis, consume, clearJustPressed } from './i
 import { drawWorld, SCREEN_TITLE, SCREEN_PLAY, SCREEN_OVER, SCREEN_PAUSE } from './render.js';
 import { initAudio, toggleMute, startMusic } from './audio.js';
 import { stageShot } from './shots.js';
+import { updateWeather, weatherSave, weatherLoad } from './weather.js';
+import { fuelSave, fuelLoad } from './fuel.js';
 import { SAVE_KEY } from './config.js';
 
 const canvas = document.getElementById('game');
@@ -36,6 +38,7 @@ function saveGame() {
     x: p.x, y: p.y, cash: p.cash, health: p.health, ammo: p.ammo,
     missionIndex: state.missionIndex, missionStep: state.missionStep, score: state.score,
     clockHours: state.clockHours,
+    weather: weatherSave(state.weather), fuel: fuelSave(state.fuel),
     packagesFound: state.packages.map((pkg) => pkg.found),
     taxi: state.taxi ? {
       trips: state.taxi.trips, earned: state.taxi.earned,
@@ -52,6 +55,9 @@ function loadSave() {
     Object.assign(state.player, { x: d.x, y: d.y, cash: d.cash, health: d.health, ammo: d.ammo });
     state.missionIndex = d.missionIndex || 0; state.missionStep = d.missionStep || 0; state.score = d.score || 0;
     if (typeof d.clockHours === 'number') state.clockHours = d.clockHours;
+    // Weather and fuel ride along with the save; old saves just keep defaults.
+    weatherLoad(state.weather, d.weather);
+    fuelLoad(state.fuel, d.fuel);
     // Hidden packages: restore which stashes were already collected.
     if (Array.isArray(d.packagesFound)) {
       state.packagesFound = 0;
@@ -99,12 +105,13 @@ function frame(now) {
       mouse.clicked = false; // the start click must not also fire a shot
       clearJustPressed(); // keys tapped on the title screen must not fire in play
       screen = SCREEN_PLAY;
-      state.dialog = 'Mara Voss — courier, ex-wheelwoman. Sal Moreno has four jobs for you, ending with the Harbor Heist. First: pick up the parcel at the yellow marker.';
+      state.dialog = 'Mara Voss — courier, ex-wheelwoman. Sal Moreno has five jobs for you, ending with the Midnight Run. First: pick up the parcel at the yellow marker.';
       state.dialogT = 7;
     }
     if (screen === SCREEN_PLAY) {
       const input = readInput();
       stepWorld(state, input, dt);
+      updateWeather(state.weather, dt, canvas.width, canvas.height);
       if (state.player.dead) screen = SCREEN_OVER;
     }
     mouse.clicked = false;

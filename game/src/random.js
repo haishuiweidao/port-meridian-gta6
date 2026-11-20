@@ -24,6 +24,9 @@ export function normAngle(a) {
   while (a < -Math.PI) a += Math.PI * 2;
   return a;
 }
+export function chance(rng, p) {
+  return rng() < p;
+}
 // Fisher–Yates shuffle with the seeded rng; returns a new array.
 export function shuffle(rng, arr) {
   const out = arr.slice();

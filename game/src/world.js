@@ -1,10 +1,12 @@
 // World state + simulation for Port Meridian.
 // Top-down city: road grid, buildings, park, harbour water, traffic, peds,
 // police, combat, wanted level, pickups, particles and missions.
-import { WORLD, ROADS_X, ROADS_Y, ROAD_W, COLORS, PLAYER, CAR, WANTED_DECAY, WANTED_MAX } from './config.js';
-import { mulberry32, pick, range, clamp, dist, angleTo, normAngle } from './random.js';
-import { MISSIONS, missionIntro } from './missions.js';
+import { WORLD, ROADS_X, ROADS_Y, ROAD_W, COLORS, PLAYER, CAR, WANTED_DECAY, WANTED_MAX, TRAFFIC_CARS, PEDESTRIANS } from './config.js';
+import { mulberry32, pick, range, clamp, dist, angleTo, normAngle, chance } from './random.js';
+import { MISSIONS, missionIntro, missionTimeLimit } from './missions.js';
 import { createTaxi, updateTaxi } from './sidejobs.js';
+import { createWeather, gripFactor } from './weather.js';
+import { createFuel, updateFuel, tryRefuel, fuelSpeedCap } from './fuel.js';
 import * as audio from './audio.js';
 
 const CAR_COLORS = ['#c0392b', '#2980b9', '#f1c40f', '#7f8c8d', '#8e44ad', '#16a085', '#e67e22', '#ecf0f1'];
@@ -54,7 +56,7 @@ export function createWorld(seed = 1) {
   const getaway = mkCar(200, 200, 0, '#111318', { parked: true, name: 'Getaway Sedan', special: true });
   parked.push(getaway); cars.push(getaway);
   // Moving traffic.
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < TRAFFIC_CARS; i++) {
     const horizontal = rng() > 0.5;
     const road = horizontal ? pick(rng, ROADS_Y) : pick(rng, ROADS_X);
     const dir = rng() > 0.5 ? 1 : -1;
@@ -64,7 +66,7 @@ export function createWorld(seed = 1) {
       pick(rng, CAR_COLORS), { traffic: true, speed: range(rng, 70, 130), dir, horizontal, road }));
   }
   const peds = [];
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < PEDESTRIANS; i++) {
     peds.push({ x: range(rng, 100, 2500), y: range(rng, 100, 1750), angle: rng() * Math.PI * 2, speed: range(rng, 28, 55), color: pick(rng, PED_COLORS), name: pick(rng, NAMES), flee: 0, tx: 0, ty: 0 });
   }
   const state = {
@@ -74,6 +76,8 @@ export function createWorld(seed = 1) {
     police: [], bullets: [], particles: [], pickups: [],
     wanted: 0, heat: 0, stars: 0,
     missionIndex: 0, missionStep: 0, missionActive: false, missionDone: false, storyComplete: false,
+    missionTimeLeft: 0, // countdown for timed jobs (mission 5); 0 means no clock
+    weather: createWeather(rng), fuel: createFuel(),
     dialog: null, dialogT: 0, message: '', messageT: 0,
     score: 0, kills: 0, carsStolen: 0,
     taxi: createTaxi(rng),
@@ -192,16 +196,20 @@ export function stepWorld(s, input, dt) {
   } else {
     // --- Driving ---
     const car = p.inCar;
+    const grip = gripFactor(s.weather); // rain-slick roads grip less
+    const topSpeed = fuelSpeedCap(s.fuel); // an empty tank barely crawls
     const fwd = input.move.y < 0 ? 1 : input.move.y > 0 ? -0.45 : 0;
     const steer = input.move.x;
-    if (fwd !== 0) car.speed = clamp(car.speed + fwd * CAR.accel * dt, -CAR.maxReverse, CAR.maxSpeed);
+    if (fwd !== 0) car.speed = clamp(car.speed + fwd * CAR.accel * grip * dt, -CAR.maxReverse, CAR.maxSpeed);
     else car.speed *= Math.max(0, 1 - 1.6 * dt);
+    // Ease down to the fuel cap instead of snapping: the engine sputters out.
+    if (car.speed > topSpeed) car.speed = Math.max(topSpeed, car.speed - 1200 * dt);
     if (input.brake) {
       // Linear braking from CAR.brake, stopping at zero instead of overshooting into reverse.
       const dec = CAR.brake * dt;
       car.speed = Math.abs(car.speed) <= dec ? 0 : car.speed - Math.sign(car.speed) * dec;
     }
-    car.angle += steer * CAR.turn * dt * (car.speed / CAR.maxSpeed) * (car.speed >= 0 ? 1 : -1);
+    car.angle += steer * CAR.turn * grip * dt * (car.speed / CAR.maxSpeed) * (car.speed >= 0 ? 1 : -1);
     const nx = car.x + Math.cos(car.angle) * car.speed * dt;
     const ny = car.y + Math.sin(car.angle) * car.speed * dt;
     const ox = car.x, oy = car.y;
@@ -210,9 +218,14 @@ export function stepWorld(s, input, dt) {
     car.x = clamp(car.x, 20, WORLD.w - 20); car.y = clamp(car.y, 20, WORLD.h - 20);
     p.x = car.x; p.y = car.y; p.angle = car.angle;
     if (Math.abs(car.speed) > 200 && s.rng() < 0.3) s.particles.push({ x: car.x - Math.cos(car.angle) * 22, y: car.y - Math.sin(car.angle) * 22, vx: 0, vy: 0, life: 0.3, color: '#888888' });
-    if (input.enter) { p.inCar = null; car.speed = 0; p.x = car.x + Math.cos(car.angle + Math.PI / 2) * 34; p.y = car.y + Math.sin(car.angle + Math.PI / 2) * 34; }
+    if (input.enter) {
+      if (tryRefuel(s.fuel, s)) { /* E was spent at the pump — stay in the car */ }
+      else { p.inCar = null; car.speed = 0; p.x = car.x + Math.cos(car.angle + Math.PI / 2) * 34; p.y = car.y + Math.sin(car.angle + Math.PI / 2) * 34; }
+    }
     audio.sfxEngine(Math.abs(car.speed) / CAR.maxSpeed);
   }
+  // Fuel drains while driving; the tank state lives in s.fuel.
+  updateFuel(s.fuel, s, dt);
 
   // --- Traffic ---
   for (const c of s.cars) {
@@ -221,10 +234,10 @@ export function stepWorld(s, input, dt) {
     c.y += Math.sin(c.angle) * c.speed * dt;
     if (c.horizontal) {
       if (c.x < 60 || c.x > WORLD.w - 60) { c.angle += Math.PI; c.x = clamp(c.x, 60, WORLD.w - 60); }
-      if (s.rng() < 0.0006) { c.horizontal = false; c.angle = s.rng() > 0.5 ? Math.PI / 2 : -Math.PI / 2; }
+      if (chance(s.rng, 0.0006)) { c.horizontal = false; c.angle = s.rng() > 0.5 ? Math.PI / 2 : -Math.PI / 2; }
     } else {
       if (c.y < 60 || c.y > WORLD.h - 60) { c.angle += Math.PI; c.y = clamp(c.y, 60, WORLD.h - 60); }
-      if (s.rng() < 0.0006) { c.horizontal = true; c.angle = s.rng() > 0.5 ? 0 : Math.PI; }
+      if (chance(s.rng, 0.0006)) { c.horizontal = true; c.angle = s.rng() > 0.5 ? 0 : Math.PI; }
     }
     // Bump the player (once per second per car, not every frame).
     if (c.hitCd > 0) c.hitCd -= dt;
@@ -331,8 +344,22 @@ function updateMission(s, dt) {
   const m = MISSIONS[s.missionIndex];
   if (!s.missionActive) {
     s.missionActive = true;
+    s.missionTimeLeft = missionTimeLimit(m);
     s.dialog = missionIntro(m); s.dialogT = 6;
     audio.sfxMission();
+  }
+  // Timed jobs: the clock runs from the briefing, and a miss restarts the
+  // run from the first step instead of ending the story.
+  if (s.missionTimeLeft > 0) {
+    s.missionTimeLeft -= dt;
+    if (s.missionTimeLeft <= 0) {
+      s.missionTimeLeft = missionTimeLimit(m);
+      s.missionStep = 0;
+      s.message = `Too slow — ${m.name} failed. Sal gives you another shot: start over.`;
+      s.messageT = 4;
+      audio.sfxCrash();
+      return;
+    }
   }
   const step = m.steps[s.missionStep];
   if (!step) return;
@@ -376,7 +403,7 @@ function updateMission(s, dt) {
       s.message = `Mission complete: ${m.name} — +$${m.reward}!`; s.messageT = 4;
       s.dialog = `Mission complete: ${m.name}. Sal paid you $${m.reward}.`; s.dialogT = 5;
       audio.sfxMission();
-      s.missionIndex += 1; s.missionStep = 0; s.missionActive = false;
+      s.missionIndex += 1; s.missionStep = 0; s.missionActive = false; s.missionTimeLeft = 0;
       if (s.missionIndex >= MISSIONS.length) {
         s.storyComplete = true;
         s.dialog = 'Story complete! Mara is free. Port Meridian is yours — free roam, keep earning.'; s.dialogT = 8;

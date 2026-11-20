@@ -24,6 +24,12 @@ export function bindInput(canvas) {
     mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
   });
   canvas.addEventListener('mousedown', (e) => { mouse.down = true; mouse.clicked = true; });
+  // Touch taps count as clicks too, so the title screen and shooting work on mobile.
+  canvas.addEventListener('touchstart', (e) => {
+    const r = canvas.getBoundingClientRect();
+    mouse.x = e.touches[0].clientX - r.left; mouse.y = e.touches[0].clientY - r.top;
+    mouse.down = true; mouse.clicked = true;
+  }, { passive: true });
   addEventListener('mouseup', () => { mouse.down = false; });
 }
 export function pressed(code) { return !!keys[code]; }
